@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Kalkulator kosztów pracy</title>
+  <style>
+    /* Ogólne style strony */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f9f9f9;
+    }
+    section {
+      padding: 40px 0;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 15px;
+    }
+    /* Stylizacja inspirowana podanymi elementami */
+    .t68 {
+      background-color: #fff;
+      padding: 40px 0;
+    }
+    .t279 {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    .t69 {
+      flex: 1;
+      max-width: 600px;
+    }
+    .t73 {
+      font-size: 2rem;
+      margin-bottom: 20px;
+      color: #333;
+      text-align: center;
+    }
+    .dh-btn-primary {
+      background-color: #007bff;
+      color: #fff;
+      padding: 10px 20px;
+      text-decoration: none;
+      border-radius: 4px;
+      transition: background-color 0.3s ease;
+      display: inline-block;
+      margin-top: 15px;
+      border: none;
+      cursor: pointer;
+    }
+    .dh-btn-primary:hover {
+      background-color: #0056b3;
+    }
+    /* Style kalkulatora */
+    .calculator-form {
+      background-color: #f0f0f0;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .calculator-form label {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 1.1rem;
+      color: #333;
+    }
+    .calculator-form input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+    .calculator-form button {
+      margin-top: 15px;
+      font-size: 1rem;
+    }
+    .result-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    .result-table th,
+    .result-table td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: center;
+    }
+    .result-table th {
+      background-color: #007bff;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <section class="t68">
+    <div class="container t279">
+      <div class="t69">
+        <h2 class="t73">Kalkulator kosztów pracy</h2>
+        <div class="calculator-form">
+          <form id="calculatorForm">
+            <label>
+              Stawka godzinowa netto (zł):
+              <input type="number" step="0.01" id="netWage" value="30">
+            </label>
+            <label>
+              Dodatkowe koszty pracodawcy (% - domyślnie 60):
+              <input type="number" step="0.1" id="employerPct" value="60">
+            </label>
+            <label>
+              Ilość dni urlopu rocznie:
+              <input type="number" step="0.1" id="vacationDays" value="21">
+            </label>
+            <label>
+              Ilość dni L4/zwolnień rocznie:
+              <input type="number" step="0.1" id="l4Days" value="10">
+            </label>
+            <label>
+              Błąd założeń/inne czynniki (%):
+              <input type="number" step="0.1" id="errorPct" value="5">
+            </label>
+            <button type="button" class="dh-btn-primary" onclick="calculateCosts()">Oblicz koszty</button>
+          </form>
+        </div>
+        <div id="results"></div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    function calculateCosts() {
+      const netWage = parseFloat(document.getElementById("netWage").value);
+      const employerPct = parseFloat(document.getElementById("employerPct").value);
+      const vacationDays = parseFloat(document.getElementById("vacationDays").value);
+      const l4Days = parseFloat(document.getElementById("l4Days").value);
+      const errorPct = parseFloat(document.getElementById("errorPct").value);
+      
+      const dailyHours = 8;
+      const monthlyHours = 160;
+      const annualHours = 1920;
+      
+      // Używamy dodatkowo 2% do domyślnego 60%, aby uzyskać przykładowe wartości
+      const employerMultiplier = (employerPct + 2) / 100; 
+      const employerCost = netWage * employerMultiplier;
+      
+      const l4Cost = (netWage * l4Days * dailyHours) / annualHours;
+      const vacationCost = (netWage * vacationDays * dailyHours) / annualHours;
+      const errorCost = netWage * (errorPct / 100);
+      
+      const totalHourly = netWage + employerCost + l4Cost + vacationCost + errorCost;
+      
+      const resultTable = `
+      <table class="result-table">
+        <tr>
+          <th>Koszt</th>
+          <th>Na 1h (zł)</th>
+          <th>Na miesiąc (160h)</th>
+          <th>Na rok (1920h)</th>
+        </tr>
+        <tr>
+          <td>Ile pracownik dostaje do ręki</td>
+          <td>${netWage.toFixed(2)}</td>
+          <td>${(netWage * monthlyHours).toFixed(2)}</td>
+          <td>${(netWage * annualHours).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td>Koszty super brutto dla pracodawcy (+60%)</td>
+          <td>${employerCost.toFixed(2)}</td>
+          <td>${(employerCost * monthlyHours).toFixed(2)}</td>
+          <td>${(employerCost * annualHours).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td>Uwzględniając koszt L4</td>
+          <td>${l4Cost.toFixed(2)}</td>
+          <td>${(l4Cost * monthlyHours).toFixed(2)}</td>
+          <td>${(l4Cost * annualHours).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td>Uwzględniając koszt urlopu</td>
+          <td>${vacationCost.toFixed(2)}</td>
+          <td>${(vacationCost * monthlyHours).toFixed(2)}</td>
+          <td>${(vacationCost * annualHours).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td>Uwzględniając: błędy, inne czynniki</td>
+          <td>${errorCost.toFixed(2)}</td>
+          <td>${(errorCost * monthlyHours).toFixed(2)}</td>
+          <td>${(errorCost * annualHours).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td><strong>Suma kosztów</strong></td>
+          <td><strong>${totalHourly.toFixed(2)}</strong></td>
+          <td><strong>${(totalHourly * monthlyHours).toFixed(2)}</strong></td>
+          <td><strong>${(totalHourly * annualHours).toFixed(2)}</strong></td>
+        </tr>
+      </table>
+      `;
+      
+      document.getElementById("results").innerHTML = resultTable;
+    }
+  </script>
+</body>
+</html>

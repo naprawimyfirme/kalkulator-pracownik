@@ -41,7 +41,7 @@
       text-align: center;
     }
     .dh-btn-primary {
-      background-color: #007bff;
+      background-color: #8e42ff;
       color: #fff;
       padding: 10px 20px;
       text-decoration: none;
@@ -53,7 +53,7 @@
       cursor: pointer;
     }
     .dh-btn-primary:hover {
-      background-color: #0056b3;
+      background-color: #363636;
     }
     /* Style kalkulatora */
     .calculator-form {
@@ -92,7 +92,7 @@
       text-align: center;
     }
     .result-table th {
-      background-color: #007bff;
+      background-color: #363636 ;
       color: #fff;
     }
   </style>
@@ -101,15 +101,14 @@
   <section class="t68">
     <div class="container t279">
       <div class="t69">
-        <h2 class="t73">Kalkulator kosztów pracy</h2>
         <div class="calculator-form">
           <form id="calculatorForm">
             <label>
-              Stawka godzinowa netto (zł):
+              Stawka godzinowa netto (zł) - tyle pracownik dostaje do ręki:
               <input type="number" step="0.01" id="netWage" value="30">
             </label>
             <label>
-              Dodatkowe koszty pracodawcy (% - domyślnie 60):
+              Dodatkowe koszty pracodawcy (%) - super brutto (domyślnie przyjęte 60%):
               <input type="number" step="0.1" id="employerPct" value="60">
             </label>
             <label>
@@ -117,11 +116,15 @@
               <input type="number" step="0.1" id="vacationDays" value="21">
             </label>
             <label>
-              Ilość dni L4/zwolnień rocznie:
+              Ilość dni L4 / zwolnień rocznie:
               <input type="number" step="0.1" id="l4Days" value="10">
             </label>
             <label>
-              Błąd założeń/inne czynniki (%):
+              Sezonowość (%):
+              <input type="number" step="0.1" id="seasonality" value="0">
+            </label>
+            <label>
+              Błąd założeń/inne czynniki specyficzne dla branży (%):
               <input type="number" step="0.1" id="errorPct" value="5">
             </label>
             <button type="button" class="dh-btn-primary" onclick="calculateCosts()">Oblicz koszty</button>
@@ -138,62 +141,86 @@
       const employerPct = parseFloat(document.getElementById("employerPct").value);
       const vacationDays = parseFloat(document.getElementById("vacationDays").value);
       const l4Days = parseFloat(document.getElementById("l4Days").value);
+      const seasonalityPct = parseFloat(document.getElementById("seasonality").value);
       const errorPct = parseFloat(document.getElementById("errorPct").value);
       
       const dailyHours = 8;
       const monthlyHours = 160;
       const annualHours = 1920;
       
-      // Używamy dodatkowo 2% do domyślnego 60%, aby uzyskać przykładowe wartości
+      // Dodatkowe koszty pracodawcy
       const employerMultiplier = (employerPct + 2) / 100; 
       const employerCost = netWage * employerMultiplier;
       
-      const l4Cost = (netWage * l4Days * dailyHours) / annualHours;
+      // Koszt urlopu (100% stawki)
       const vacationCost = (netWage * vacationDays * dailyHours) / annualHours;
+      
+      // L4 jest płatne 80%
+      const l4Cost = (netWage * 0.8 * l4Days * dailyHours) / annualHours;
+      
+      // Koszt sezonowości
+      const seasonalityCost = netWage * (seasonalityPct / 100);
+      
+      // Koszt błędu / innych czynników
       const errorCost = netWage * (errorPct / 100);
       
-      const totalHourly = netWage + employerCost + l4Cost + vacationCost + errorCost;
+      // Suma kosztów na 1h
+      const totalHourly = netWage + employerCost + l4Cost + vacationCost + seasonalityCost + errorCost;
       
+      // Generowanie tabeli wyników
       const resultTable = `
       <table class="result-table">
         <tr>
           <th>Koszt</th>
           <th>Na 1h (zł)</th>
-          <th>Na miesiąc (160h)</th>
-          <th>Na rok (1920h)</th>
+          <th>Na miesiąc (zł)</th>
+          <th>Na rok (zł)</th>
         </tr>
         <tr>
-          <td>Ile pracownik dostaje do ręki</td>
+          <td>Stawka godzinowa netto (zł) 👈 
+            <span style="color: red;">tyle widzi pracownik</span>
+          </td>
           <td>${netWage.toFixed(2)}</td>
           <td>${(netWage * monthlyHours).toFixed(2)}</td>
           <td>${(netWage * annualHours).toFixed(2)}</td>
         </tr>
         <tr>
-          <td>Koszty super brutto dla pracodawcy (+60%)</td>
+          <td>Dodatkowe koszty pracodawcy - super brutto (%)</td>
           <td>${employerCost.toFixed(2)}</td>
           <td>${(employerCost * monthlyHours).toFixed(2)}</td>
           <td>${(employerCost * annualHours).toFixed(2)}</td>
         </tr>
         <tr>
-          <td>Uwzględniając koszt L4</td>
-          <td>${l4Cost.toFixed(2)}</td>
-          <td>${(l4Cost * monthlyHours).toFixed(2)}</td>
-          <td>${(l4Cost * annualHours).toFixed(2)}</td>
-        </tr>
-        <tr>
-          <td>Uwzględniając koszt urlopu</td>
+          <td>Koszt urlopu (100%)</td>
           <td>${vacationCost.toFixed(2)}</td>
           <td>${(vacationCost * monthlyHours).toFixed(2)}</td>
           <td>${(vacationCost * annualHours).toFixed(2)}</td>
         </tr>
         <tr>
-          <td>Uwzględniając: błędy, inne czynniki</td>
+          <td>Koszt L4 (80%)</td>
+          <td>${l4Cost.toFixed(2)}</td>
+          <td>${(l4Cost * monthlyHours).toFixed(2)}</td>
+          <td>${(l4Cost * annualHours).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td>Koszty sezonowości</td>
+          <td>${seasonalityCost.toFixed(2)}</td>
+          <td>${(seasonalityCost * monthlyHours).toFixed(2)}</td>
+          <td>${(seasonalityCost * annualHours).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td>Błąd założeń/obliczeń, inne czynniki, specyfika branży</td>
           <td>${errorCost.toFixed(2)}</td>
           <td>${(errorCost * monthlyHours).toFixed(2)}</td>
           <td>${(errorCost * annualHours).toFixed(2)}</td>
         </tr>
         <tr>
-          <td><strong>Suma kosztów</strong></td>
+          <td>
+            <strong>
+              Całkowity koszt pracodawcy 👈 
+              <span style="color: red;">tyle pracodawcę kosztuje pracownik</span>
+            </strong>
+          </td>
           <td><strong>${totalHourly.toFixed(2)}</strong></td>
           <td><strong>${(totalHourly * monthlyHours).toFixed(2)}</strong></td>
           <td><strong>${(totalHourly * annualHours).toFixed(2)}</strong></td>

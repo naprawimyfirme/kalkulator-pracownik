@@ -92,8 +92,21 @@
       text-align: center;
     }
     .result-table th {
-      background-color: #363636 ;
+      background-color: #363636;
       color: #fff;
+    }
+    /* Dostosowanie wyrównania pierwszej kolumny */
+    .result-table th:first-child {
+      text-align: center; /* Nagłówek pierwszej kolumny (słowo "Koszt") */
+    }
+    .result-table td:first-child {
+      text-align: left;   /* Opisy w pierwszej kolumnie */
+      padding-left: 10px;
+    }
+    .notes {
+      margin-top: 20px;
+      font-size: 0.9rem;
+      color: #555;
     }
   </style>
 </head>
@@ -108,7 +121,7 @@
               <input type="number" step="0.01" id="netWage" value="30">
             </label>
             <label>
-              Dodatkowe koszty pracodawcy (%) - super brutto (domyślnie przyjęte +64%):
+              Koszty super brutto + urlop + L4 (domyślnie przyjęte +64%):
               <input type="number" step="0.1" id="employerPct" value="64">
             </label>
             <label>
@@ -120,7 +133,7 @@
               <input type="number" step="0.1" id="l4Days" value="10">
             </label>
             <label>
-              Sezonowość (%):
+              Sezonowość firmy (%):
               <input type="number" step="0.1" id="seasonality" value="0">
             </label>
             <label>
@@ -137,6 +150,7 @@
 
   <script>
     function calculateCosts() {
+      // Pobranie danych wejściowych
       const netWage = parseFloat(document.getElementById("netWage").value);
       const employerPct = parseFloat(document.getElementById("employerPct").value);
       const vacationDays = parseFloat(document.getElementById("vacationDays").value);
@@ -144,92 +158,34 @@
       const seasonalityPct = parseFloat(document.getElementById("seasonality").value);
       const errorPct = parseFloat(document.getElementById("errorPct").value);
       
+      // Założenia
+      const totalWorkingDays = 240; // Umownie przyjęta liczba dni roboczych w roku
       const dailyHours = 8;
-      const monthlyHours = 160;
-      const annualHours = 1920;
+      const nominalHours = totalWorkingDays * dailyHours; // np. 240 * 8 = 1920 godzin
+      // Realna liczba dni i godzin pracy po odjęciu urlopu i L4
+      const realWorkingDays = totalWorkingDays - (vacationDays + l4Days);
+      const realWorkingHours = realWorkingDays * dailyHours;
       
-      // Dodatkowe koszty pracodawcy
-      const employerMultiplier = (employerPct + 2) / 100; 
-      const employerCost = netWage * employerMultiplier;
+      // Obliczenia składników rocznych
+      // Wynagrodzenie netto – pracownik jest opłacany za cały okres
+      const netWageAnnual = netWage * nominalHours;
+      // Dodatkowe koszty pracodawcy – super brutto, poprawione do employerPct/100
+      const employerMultiplier = employerPct / 100;
+      const employerCostAnnual = netWage * employerMultiplier * nominalHours;
+      // Koszt urlopu – koszt wynagrodzenia za dni urlopu (100%)
+      const vacationCostAnnual = netWage * vacationDays * dailyHours;
+      // Koszt L4 – płacone 80%
+      const l4CostAnnual = netWage * 0.8 * l4Days * dailyHours;
+      // Koszty sezonowości – przyjmowane jako procent wynagrodzenia
+      const seasonalityCostAnnual = netWage * (seasonalityPct / 100) * nominalHours;
+      // Koszty błędu/założeń
+      const errorCostAnnual = netWage * (errorPct / 100) * nominalHours;
       
-      // Koszt urlopu (100% stawki)
-      const vacationCost = (netWage * vacationDays * dailyHours) / annualHours;
+      // Całkowity koszt pracodawcy – suma wszystkich składników
+      const totalAnnualCost = netWageAnnual + employerCostAnnual + vacationCostAnnual + l4CostAnnual + seasonalityCostAnnual + errorCostAnnual;
       
-      // L4 jest płatne 80%
-      const l4Cost = (netWage * 0.8 * l4Days * dailyHours) / annualHours;
-      
-      // Koszt sezonowości
-      const seasonalityCost = netWage * (seasonalityPct / 100);
-      
-      // Koszt błędu / innych czynników
-      const errorCost = netWage * (errorPct / 100);
-      
-      // Suma kosztów na 1h
-      const totalHourly = netWage + employerCost + l4Cost + vacationCost + seasonalityCost + errorCost;
-      
-      // Generowanie tabeli wyników
-      const resultTable = `
-      <table class="result-table">
-        <tr>
-          <th>Koszt</th>
-          <th>Na 1h (zł)</th>
-          <th>Na miesiąc (zł)</th>
-          <th>Na rok (zł)</th>
-        </tr>
-        <tr>
-          <td>Stawka godzinowa netto (zł) 👈 
-            <span style="color: red;">tyle widzi pracownik</span>
-          </td>
-          <td>${netWage.toFixed(2)}</td>
-          <td>${(netWage * monthlyHours).toFixed(2)}</td>
-          <td>${(netWage * annualHours).toFixed(2)}</td>
-        </tr>
-        <tr>
-          <td>Dodatkowe koszty pracodawcy - super brutto (%)</td>
-          <td>${employerCost.toFixed(2)}</td>
-          <td>${(employerCost * monthlyHours).toFixed(2)}</td>
-          <td>${(employerCost * annualHours).toFixed(2)}</td>
-        </tr>
-        <tr>
-          <td>Koszt urlopu (100%)</td>
-          <td>${vacationCost.toFixed(2)}</td>
-          <td>${(vacationCost * monthlyHours).toFixed(2)}</td>
-          <td>${(vacationCost * annualHours).toFixed(2)}</td>
-        </tr>
-        <tr>
-          <td>Koszt L4 (80%)</td>
-          <td>${l4Cost.toFixed(2)}</td>
-          <td>${(l4Cost * monthlyHours).toFixed(2)}</td>
-          <td>${(l4Cost * annualHours).toFixed(2)}</td>
-        </tr>
-        <tr>
-          <td>Koszty sezonowości</td>
-          <td>${seasonalityCost.toFixed(2)}</td>
-          <td>${(seasonalityCost * monthlyHours).toFixed(2)}</td>
-          <td>${(seasonalityCost * annualHours).toFixed(2)}</td>
-        </tr>
-        <tr>
-          <td>Błąd założeń/obliczeń, inne czynniki, specyfika branży</td>
-          <td>${errorCost.toFixed(2)}</td>
-          <td>${(errorCost * monthlyHours).toFixed(2)}</td>
-          <td>${(errorCost * annualHours).toFixed(2)}</td>
-        </tr>
-        <tr>
-          <td>
-            <strong>
-              Całkowity koszt pracodawcy 👈 
-              <span style="color: red;">tyle pracodawcę kosztuje pracownik</span>
-            </strong>
-          </td>
-          <td><strong>${totalHourly.toFixed(2)}</strong></td>
-          <td><strong>${(totalHourly * monthlyHours).toFixed(2)}</strong></td>
-          <td><strong>${(totalHourly * annualHours).toFixed(2)}</strong></td>
-        </tr>
-      </table>
-      `;
-      
-      document.getElementById("results").innerHTML = resultTable;
-    }
-  </script>
-</body>
-</html>
+      // Efektywny koszt pracodawcy na realnie przepracowaną godzinę
+      const effectiveHourlyCost = totalAnnualCost / realWorkingHours;
+      // Efektywny koszt miesięczny – zakładając, że miesiąc to 1/12 faktycznie przepracowanych godzin
+      const effectiveMonthlyCost = effectiveHourlyCost * (realWorkingHours / 12);
+      const effectiveAnnualCost = totalAnnualCost

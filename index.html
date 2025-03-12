@@ -188,4 +188,69 @@
       const effectiveHourlyCost = totalAnnualCost / realWorkingHours;
       // Efektywny koszt miesięczny – zakładając, że miesiąc to 1/12 faktycznie przepracowanych godzin
       const effectiveMonthlyCost = effectiveHourlyCost * (realWorkingHours / 12);
-      const effectiveAnnualCost = totalAnnualCost
+      const effectiveAnnualCost = totalAnnualCost; // Całkowity koszt roczny
+      
+      // Generowanie tabeli wyników
+      const resultTable = `
+      <table class="result-table">
+        <tr>
+          <th>Koszt</th>
+          <th>Na 1h (zł)</th>
+          <th>Na miesiąc (zł)</th>
+          <th>Na rok (zł)</th>
+        </tr>
+        <tr>
+          <td><strong>Stawka godzinowa netto</strong> <span style="color: red;">(to, co dostaje pracownik)</span></td>
+          <td>${netWage.toFixed(2)}</td>
+          <td>${(netWage * (nominalHours/12)).toFixed(2)}</td>
+          <td>${(netWage * nominalHours).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td>Dodatkowe koszty pracodawcy - super brutto (%)</td>
+          <td>${(netWage * employerMultiplier).toFixed(2)}</td>
+          <td>${(netWage * employerMultiplier * (nominalHours/12)).toFixed(2)}</td>
+          <td>${(netWage * employerMultiplier * nominalHours).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td>Koszt urlopu (100% stawki)</td>
+          <td>${(vacationCostAnnual / nominalHours).toFixed(2)}</td>
+          <td>${((vacationCostAnnual / nominalHours) * (nominalHours/12)).toFixed(2)}</td>
+          <td>${vacationCostAnnual.toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td>Koszt L4 (płatne 80%)</td>
+          <td>${(l4CostAnnual / nominalHours).toFixed(2)}</td>
+          <td>${((l4CostAnnual / nominalHours) * (nominalHours/12)).toFixed(2)}</td>
+          <td>${l4CostAnnual.toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td>Koszty sezonowości</td>
+          <td>${(netWage * (seasonalityPct/100)).toFixed(2)}</td>
+          <td>${(netWage * (seasonalityPct/100) * (nominalHours/12)).toFixed(2)}</td>
+          <td>${seasonalityCostAnnual.toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td>Koszty błędu/założeń</td>
+          <td>${(netWage * (errorPct/100)).toFixed(2)}</td>
+          <td>${(netWage * (errorPct/100) * (nominalHours/12)).toFixed(2)}</td>
+          <td>${errorCostAnnual.toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td><strong>Całkowity koszt pracodawcy<br><span style="color: red;">(efektywnie, wg realnie przepracowanych godzin)</span></strong></td>
+          <td><strong>${effectiveHourlyCost.toFixed(2)}</strong></td>
+          <td><strong>${effectiveMonthlyCost.toFixed(2)}</strong></td>
+          <td><strong>${effectiveAnnualCost.toFixed(2)}</strong></td>
+        </tr>
+      </table>
+      <div class="notes">
+        <p>Ilość dni roboczych w roku: ${totalWorkingDays}</p>
+        <p>Ilość realnie przepracowanych dni: ${realWorkingDays}</p>
+        <p>Ilość realnie przepracowanych godzin: ${realWorkingHours}</p>
+      </div>
+      `;
+      
+      document.getElementById("results").innerHTML = resultTable;
+    }
+  </script>
+</body>
+</html>

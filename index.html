@@ -126,11 +126,11 @@
             </label>
             <label>
               Ilość dni urlopu rocznie:
-              <input type="number" step="0.1" id="vacationDays" value="21">
+              <input type="number" step="0.1" id="vacationDays" value="26">
             </label>
             <label>
               Ilość dni L4 / zwolnień rocznie:
-              <input type="number" step="0.1" id="l4Days" value="10">
+              <input type="number" step="0.1" id="l4Days" value="0">
             </label>
             <label>
               Sezonowość firmy (%):
@@ -236,7 +236,7 @@
           <td>${errorCostAnnual.toFixed(2)}</td>
         </tr>
         <tr>
-          <td><strong>Całkowity koszt pracodawcy<br><span style="color: red;">(efektywnie, wg realnie przepracowanych godzin)</span></strong></td>
+          <td><strong>Całkowity koszt pracodawcy</strong> <span style="color: red;">(efektywnie, wg realnie przepracowanych godzin)</span></td>
           <td><strong>${effectiveHourlyCost.toFixed(2)}</strong></td>
           <td><strong>${effectiveMonthlyCost.toFixed(2)}</strong></td>
           <td><strong>${effectiveAnnualCost.toFixed(2)}</strong></td>

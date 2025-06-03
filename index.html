@@ -51,6 +51,7 @@
       margin-top: 15px;
       border: none;
       cursor: pointer;
+      margin-right: 10px;
     }
     .dh-btn-primary:hover {
       background-color: #363636;
@@ -68,13 +69,14 @@
       font-size: 1.1rem;
       color: #333;
     }
-    .calculator-form input {
+    .calculator-form input, .calculator-form select {
       width: 100%;
       padding: 8px;
       margin-top: 5px;
       border: 1px solid #ccc;
       border-radius: 4px;
       font-size: 1rem;
+      box-sizing: border-box;
     }
     .calculator-form button {
       margin-top: 15px;
@@ -97,10 +99,10 @@
     }
     /* Dostosowanie wyrównania pierwszej kolumny */
     .result-table th:first-child {
-      text-align: center; /* Nagłówek pierwszej kolumny (słowo "Koszt") */
+      text-align: center;
     }
     .result-table td:first-child {
-      text-align: left;   /* Opisy w pierwszej kolumnie */
+      text-align: left;
       padding-left: 10px;
     }
     .notes {
@@ -108,89 +110,192 @@
       font-size: 0.9rem;
       color: #555;
     }
+    .tooltip {
+      background-color: #e8f4f8;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+      font-size: 0.9rem;
+      border-left: 4px solid #8e42ff;
+    }
+    .highlight {
+      background-color: #fff3cd;
+      padding: 15px;
+      border-radius: 4px;
+      margin: 15px 0;
+      border-left: 4px solid #ffc107;
+    }
   </style>
 </head>
 <body>
   <section class="t68">
     <div class="container t279">
       <div class="t69">
+        <h1 class="t73">Kalkulator kosztów pracy</h1>
+        
         <div class="calculator-form">
           <form id="calculatorForm">
             <label>
               Stawka godzinowa netto (zł) - tyle pracownik dostaje do ręki:
-              <input type="number" step="0.01" id="netWage" value="30">
+              <input type="number" step="0.01" id="netWage" value="30" min="0">
             </label>
+            
             <label>
-              Koszty super brutto + urlop + L4 (domyślnie przyjęte +64%):
-              <input type="number" step="0.1" id="employerPct" value="64">
+              Typ umowy (automatycznie ustawi koszty pracodawcy):
+              <select id="contractType" onchange="updateEmployerCosts()">
+                <option value="uop">Umowa o pracę (UoP) - 64%</option>
+                <option value="uz">Umowa zlecenie - 25%</option>
+                <option value="uod">Umowa o dzieło - 2%</option>
+                <option value="b2b">B2B / Samozatrudnienie - 0%</option>
+              </select>
             </label>
+            
+            <label>
+              Koszty super brutto + urlop + L4 (%):
+              <input type="number" step="0.1" id="employerPct" value="64" min="0" max="200">
+            </label>
+            
+            <div class="tooltip">
+              <strong>Objaśnienie kosztów pracodawcy w 2025 roku:</strong><br>
+              • <strong>UoP (64%):</strong> Składki ZUS pracodawcy (emerytalna, rentowa, wypadkowa), Fundusz Pracy, FGŚP<br>
+              • <strong>Zlecenie (25%):</strong> Zależy od sytuacji zleceniobiorcy - czy ma inne ubezpieczenie, średnia dla różnych przypadków<br>
+              • <strong>Umowa o dzieło (2%):</strong> Tylko składka wypadkowa, brak składek ZUS<br>
+              • <strong>B2B (0%):</strong> Pracodawca nie płaci składek, ale faktury zwykle o 20-30% wyższe od pensji
+            </div>
+            
             <label>
               Ilość dni urlopu rocznie:
-              <input type="number" step="0.1" id="vacationDays" value="26">
+              <input type="number" step="0.1" id="vacationDays" value="26" min="0" max="50">
+              <small style="color: #666; display: block; margin-top: 3px;">Dotyczy tylko umowy o pracę</small>
             </label>
+            
             <label>
               Ilość dni L4 / zwolnień rocznie:
-              <input type="number" step="0.1" id="l4Days" value="0">
+              <input type="number" step="0.1" id="l4Days" value="0" min="0" max="100">
+              <small style="color: #666; display: block; margin-top: 3px;">Dotyczy tylko umowy o pracę</small>
             </label>
+            
             <label>
               Sezonowość firmy (%):
-              <input type="number" step="0.1" id="seasonality" value="0">
+              <input type="number" step="0.1" id="seasonality" value="0" min="0" max="50">
             </label>
+            
             <label>
               Błąd założeń/inne czynniki specyficzne dla branży (%):
-              <input type="number" step="0.1" id="errorPct" value="5">
+              <input type="number" step="0.1" id="errorPct" value="0" min="0" max="30">
             </label>
+            
+            <label>
+              Liczba dni roboczych w roku:
+              <input type="number" id="workingDays" value="240" min="200" max="260">
+            </label>
+            
+            <label>
+              Godziny pracy dziennie:
+              <input type="number" step="0.5" id="dailyHours" value="8" min="1" max="12">
+            </label>
+            
             <button type="button" class="dh-btn-primary" onclick="calculateCosts()">Oblicz koszty</button>
+            <button type="button" class="dh-btn-primary" onclick="resetForm()">Reset</button>
           </form>
         </div>
+        
         <div id="results"></div>
       </div>
     </div>
   </section>
 
   <script>
+    function updateEmployerCosts() {
+      const contractType = document.getElementById('contractType').value;
+      const employerPctInput = document.getElementById('employerPct');
+      const vacationInput = document.getElementById('vacationDays');
+      const l4Input = document.getElementById('l4Days');
+      
+      const contractDefaults = {
+        'uop': 64,    // Umowa o pracę - wszystkie składki ZUS pracodawcy
+        'uz': 25,     // Umowa zlecenie - średnia dla różnych przypadków
+        'uod': 2,     // Umowa o dzieło - tylko składka wypadkowa
+        'b2b': 0      // B2B - brak składek
+      };
+      
+      // Ustaw koszty pracodawcy
+      if (contractDefaults.hasOwnProperty(contractType)) {
+        employerPctInput.value = contractDefaults[contractType];
+      } else {
+        employerPctInput.value = 64;
+      }
+      
+      // Dla umów cywilnoprawnych (nie UoP) wyzeruj urlop i L4
+      if (contractType !== 'uop') {
+        vacationInput.value = 0;
+        l4Input.value = 0;
+        vacationInput.disabled = true;
+        l4Input.disabled = true;
+        vacationInput.style.backgroundColor = '#f5f5f5';
+        l4Input.style.backgroundColor = '#f5f5f5';
+      } else {
+        vacationInput.disabled = false;
+        l4Input.disabled = false;
+        vacationInput.style.backgroundColor = '';
+        l4Input.style.backgroundColor = '';
+        if (vacationInput.value == 0) vacationInput.value = 26;
+      }
+    }
+
     function calculateCosts() {
       // Pobranie danych wejściowych
-      const netWage = parseFloat(document.getElementById("netWage").value);
-      const employerPct = parseFloat(document.getElementById("employerPct").value);
-      const vacationDays = parseFloat(document.getElementById("vacationDays").value);
-      const l4Days = parseFloat(document.getElementById("l4Days").value);
-      const seasonalityPct = parseFloat(document.getElementById("seasonality").value);
-      const errorPct = parseFloat(document.getElementById("errorPct").value);
+      const netWage = parseFloat(document.getElementById("netWage").value) || 0;
+      const employerPct = parseFloat(document.getElementById("employerPct").value) || 0;
+      const vacationDays = parseFloat(document.getElementById("vacationDays").value) || 0;
+      const l4Days = parseFloat(document.getElementById("l4Days").value) || 0;
+      const seasonalityPct = parseFloat(document.getElementById("seasonality").value) || 0;
+      const errorPct = parseFloat(document.getElementById("errorPct").value) || 0;
+      const totalWorkingDays = parseFloat(document.getElementById("workingDays").value) || 240;
+      const dailyHours = parseFloat(document.getElementById("dailyHours").value) || 8;
+      
+      if (netWage <= 0) {
+        alert('Wprowadź poprawną stawkę godzinową!');
+        return;
+      }
       
       // Założenia
-      const totalWorkingDays = 240; // Umownie przyjęta liczba dni roboczych w roku
-      const dailyHours = 8;
-      const nominalHours = totalWorkingDays * dailyHours; // np. 240 * 8 = 1920 godzin
-      // Realna liczba dni i godzin pracy po odjęciu urlopu i L4
+      const nominalHours = totalWorkingDays * dailyHours;
       const realWorkingDays = totalWorkingDays - (vacationDays + l4Days);
       const realWorkingHours = realWorkingDays * dailyHours;
       
       // Obliczenia składników rocznych
-      // Wynagrodzenie netto – pracownik jest opłacany za cały okres
       const netWageAnnual = netWage * nominalHours;
-      // Dodatkowe koszty pracodawcy – super brutto, poprawione do employerPct/100
       const employerMultiplier = employerPct / 100;
       const employerCostAnnual = netWage * employerMultiplier * nominalHours;
-      // Koszt urlopu – koszt wynagrodzenia za dni urlopu (100%)
       const vacationCostAnnual = netWage * vacationDays * dailyHours;
-      // Koszt L4 – płacone 80%
       const l4CostAnnual = netWage * 0.8 * l4Days * dailyHours;
-      // Koszty sezonowości – przyjmowane jako procent wynagrodzenia
       const seasonalityCostAnnual = netWage * (seasonalityPct / 100) * nominalHours;
-      // Koszty błędu/założeń
       const errorCostAnnual = netWage * (errorPct / 100) * nominalHours;
       
-      // Całkowity koszt pracodawcy – suma wszystkich składników
       const totalAnnualCost = netWageAnnual + employerCostAnnual + vacationCostAnnual + l4CostAnnual + seasonalityCostAnnual + errorCostAnnual;
       
-      // Efektywny koszt pracodawcy na realnie przepracowaną godzinę
       const effectiveHourlyCost = totalAnnualCost / realWorkingHours;
-      // Efektywny koszt miesięczny – zakładając, że miesiąc to 1/12 faktycznie przepracowanych godzin
       const effectiveMonthlyCost = effectiveHourlyCost * (realWorkingHours / 12);
-      const effectiveAnnualCost = totalAnnualCost; // Całkowity koszt roczny
+      const costMultiplier = effectiveHourlyCost / netWage;
       
       // Generowanie tabeli wyników
+      const contractType = document.getElementById('contractType').value;
+      const isUoP = contractType === 'uop';
+      
+      // Obliczenia dla kolumn miesięcznych i rocznych na podstawie realnych kosztów
+      const realMonthlyCost = effectiveHourlyCost * (realWorkingHours / 12);
+      const employerRealMonthlyCost = (netWage * employerMultiplier) * (realWorkingHours / 12);
+      const vacationRealMonthlyCost = (vacationCostAnnual / nominalHours) * (realWorkingHours / 12);
+      const l4RealMonthlyCost = (l4CostAnnual / nominalHours) * (realWorkingHours / 12);
+      const seasonalityRealMonthlyCost = (netWage * (seasonalityPct/100)) * (realWorkingHours / 12);
+      const errorRealMonthlyCost = (netWage * (errorPct/100)) * (realWorkingHours / 12);
+      
+      const netWageRealAnnual = netWage * realWorkingHours;
+      const employerRealAnnual = (netWage * employerMultiplier) * realWorkingHours;
+      const seasonalityRealAnnual = (netWage * (seasonalityPct/100)) * realWorkingHours;
+      const errorRealAnnual = (netWage * (errorPct/100)) * realWorkingHours;
+      
       const resultTable = `
       <table class="result-table">
         <tr>
@@ -202,69 +307,123 @@
         <tr>
           <td><strong>Stawka godzinowa netto</strong> <span style="color: red;">(to, co dostaje pracownik)</span></td>
           <td>${netWage.toFixed(2)}</td>
-          <td>${(netWage * (nominalHours/12)).toFixed(2)}</td>
-          <td>${(netWage * nominalHours).toFixed(2)}</td>
+          <td>${(netWage * (realWorkingHours/12)).toFixed(2)}</td>
+          <td>${netWageRealAnnual.toFixed(2)}</td>
         </tr>
         <tr>
-          <td>Dodatkowe koszty pracodawcy - super brutto (%)</td>
+          <td>Dodatkowe koszty pracodawcy - super brutto (${employerPct}%)</td>
           <td>${(netWage * employerMultiplier).toFixed(2)}</td>
-          <td>${(netWage * employerMultiplier * (nominalHours/12)).toFixed(2)}</td>
-          <td>${(netWage * employerMultiplier * nominalHours).toFixed(2)}</td>
+          <td>${employerRealMonthlyCost.toFixed(2)}</td>
+          <td>${employerRealAnnual.toFixed(2)}</td>
         </tr>
+        ${isUoP ? `
         <tr>
           <td>Koszt urlopu (100% stawki)</td>
           <td>${(vacationCostAnnual / nominalHours).toFixed(2)}</td>
-          <td>${((vacationCostAnnual / nominalHours) * (nominalHours/12)).toFixed(2)}</td>
+          <td>${vacationRealMonthlyCost.toFixed(2)}</td>
           <td>${vacationCostAnnual.toFixed(2)}</td>
         </tr>
         <tr>
           <td>Koszt L4 (płatne 80%)</td>
           <td>${(l4CostAnnual / nominalHours).toFixed(2)}</td>
-          <td>${((l4CostAnnual / nominalHours) * (nominalHours/12)).toFixed(2)}</td>
+          <td>${l4RealMonthlyCost.toFixed(2)}</td>
           <td>${l4CostAnnual.toFixed(2)}</td>
         </tr>
+        ` : `
+        <tr style="color: #888;">
+          <td>Koszt urlopu <span style="font-size: 0.9em;">(brak - tylko UoP)</span></td>
+          <td>0.00</td>
+          <td>0.00</td>
+          <td>0.00</td>
+        </tr>
+        <tr style="color: #888;">
+          <td>Koszt L4 <span style="font-size: 0.9em;">(brak - tylko UoP)</span></td>
+          <td>0.00</td>
+          <td>0.00</td>
+          <td>0.00</td>
+        </tr>
+        `}
         <tr>
           <td>Koszty sezonowości</td>
           <td>${(netWage * (seasonalityPct/100)).toFixed(2)}</td>
-          <td>${(netWage * (seasonalityPct/100) * (nominalHours/12)).toFixed(2)}</td>
-          <td>${seasonalityCostAnnual.toFixed(2)}</td>
+          <td>${seasonalityRealMonthlyCost.toFixed(2)}</td>
+          <td>${seasonalityRealAnnual.toFixed(2)}</td>
         </tr>
         <tr>
           <td>Koszty błędu/założeń</td>
           <td>${(netWage * (errorPct/100)).toFixed(2)}</td>
-          <td>${(netWage * (errorPct/100) * (nominalHours/12)).toFixed(2)}</td>
-          <td>${errorCostAnnual.toFixed(2)}</td>
+          <td>${errorRealMonthlyCost.toFixed(2)}</td>
+          <td>${errorRealAnnual.toFixed(2)}</td>
         </tr>
-        <tr>
+        <tr style="background-color: #fff3cd;">
           <td><strong>Całkowity koszt pracodawcy</strong> <span style="color: red;">(efektywnie, wg realnie przepracowanych godzin)</span></td>
           <td><strong>${effectiveHourlyCost.toFixed(2)}</strong></td>
-          <td><strong>${effectiveMonthlyCost.toFixed(2)}</strong></td>
-          <td><strong>${effectiveAnnualCost.toFixed(2)}</strong></td>
+          <td><strong>${realMonthlyCost.toFixed(2)}</strong></td>
+          <td><strong>${totalAnnualCost.toFixed(2)}</strong></td>
         </tr>
       </table>
+      
       <div class="notes">
-        <p>Ilość dni roboczych w roku: ${totalWorkingDays}</p>
-        <p>Ilość realnie przepracowanych dni: ${realWorkingDays}</p>
-        <p>Ilość realnie przepracowanych godzin: ${realWorkingHours}</p>
+        <p><strong>Założenia kalkulacji:</strong></p>
+        <p>• Typ umowy: ${getContractTypeName(contractType)}</p>
+        <p>• Ilość dni roboczych w roku: ${totalWorkingDays}</p>
+        <p>• Ilość realnie przepracowanych dni: ${realWorkingDays}</p>
+        <p>• Ilość realnie przepracowanych godzin: ${realWorkingHours}</p>
+        <p>• Godziny pracy dziennie: ${dailyHours}</p>
+        ${!isUoP ? '<p><strong>Uwaga:</strong> Umowy cywilnoprawne nie obejmują urlopu ani L4</p>' : ''}
+        <p><strong>Wniosek:</strong> Pracownik kosztuje pracodawcę ${costMultiplier.toFixed(2)} razy więcej niż jego stawka netto!</p>
+        <p><strong>Logika:</strong> Wszystkie kwoty pokazują realny koszt za rzeczywiście przepracowane godziny (uwzględniając że pracodawca płaci za urlop/L4, ale nie dostaje za to pracy)</p>
       </div>
       `;
       
       document.getElementById("results").innerHTML = resultTable;
     }
+
+    function getContractTypeName(contractType) {
+      const names = {
+        'uop': 'Umowa o pracę',
+        'uz': 'Umowa zlecenie',
+        'uod': 'Umowa o dzieło',
+        'b2b': 'B2B / Samozatrudnienie'
+      };
+      return names[contractType] || 'Nieznany';
+    }
+
+    function resetForm() {
+      document.getElementById('calculatorForm').reset();
+      document.getElementById('netWage').value = 30;
+      document.getElementById('employerPct').value = 64;
+      document.getElementById('vacationDays').value = 26;
+      document.getElementById('l4Days').value = 0;
+      document.getElementById('seasonality').value = 0;
+      document.getElementById('errorPct').value = 0;
+      document.getElementById('workingDays').value = 240;
+      document.getElementById('dailyHours').value = 8;
+      document.getElementById('contractType').value = 'uop';
+      document.getElementById('results').innerHTML = '';
+      updateEmployerCosts();
+    }
+
+    // Automatyczne obliczenie przy starcie
+    window.addEventListener('load', function() {
+      updateEmployerCosts();
+      calculateCosts();
+    });
+
+    // Funkcje pomocnicze dla iframe
+    function sendHeightToParent() {
+      const height = document.body.scrollHeight;
+      if (window.parent && window.parent.postMessage) {
+        window.parent.postMessage({ iframeHeight: height }, '*');
+      }
+    }
+
+    window.addEventListener('load', sendHeightToParent);
+    window.addEventListener('resize', sendHeightToParent);
+
+    document.addEventListener('click', function() {
+      setTimeout(sendHeightToParent, 300);
+    });
   </script>
-
-  <script>
-  function sendHeightToParent() {
-    const height = document.body.scrollHeight;
-    window.parent.postMessage({ iframeHeight: height }, '*');
-  }
-
-  window.addEventListener('load', sendHeightToParent);
-  window.addEventListener('resize', sendHeightToParent);
-
-  document.addEventListener('click', function() {
-    setTimeout(sendHeightToParent, 300);
-  });
-</script>
 </body>
 </html>
